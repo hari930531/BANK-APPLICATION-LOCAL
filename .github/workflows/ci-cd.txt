@@ -1,0 +1,176 @@
+# ==============================================================================
+# Workflow Name: Banking App Multi-Service CI/CD Pipeline
+# Description: Uses official Docker GitHub Actions to authenticate, build,
+#              push container images to Docker Hub, and launch services on
+#              a dedicated Docker network with persistent volumes.
+# ==============================================================================
+
+name: Build, Push, and Run Banking Services
+
+# Trigger the workflow on push or pull requests to main/master branches
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-push-deploy:
+    name: Build, Push and Run Services
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------------
+      # Step 1: Check out repository source code
+      # Action: actions/checkout@v4
+      # ------------------------------------------------------------------------
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------------
+      # Step 2: Set up Docker Buildx (Official Docker Builder Toolkit)
+      # Action: docker/setup-buildx-action@v3
+      # ------------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ------------------------------------------------------------------------
+      # Step 3: Log in to Docker Hub using official credentials action
+      # Action: docker/login-action@v3
+      # ------------------------------------------------------------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      # ------------------------------------------------------------------------
+      # Step 4: Build & Push Frontend Image
+      # Image Tag: hari930531/Bank_Frontend:latest
+      # Action: docker/build-push-action@v5
+      # ------------------------------------------------------------------------
+      - name: Build and Push Bank_Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          load: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/Bank_Frontend:latest
+
+      # ------------------------------------------------------------------------
+      # Step 5: Build & Push Account Service Image
+      # Image Tag: hari930531/account-service:latest
+      # Action: docker/build-push-action@v5
+      # ------------------------------------------------------------------------
+      - name: Build and Push account-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./account-service
+          file: ./account-service/Dockerfile
+          push: true
+          load: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/account-service:latest
+
+      # ------------------------------------------------------------------------
+      # Step 6: Build & Push Transfer Service Image
+      # Image Tag: hari930531/transfer-service:latest
+      # Action: docker/build-push-action@v5
+      # ------------------------------------------------------------------------
+      - name: Build and Push transfer-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./transfer-service
+          file: ./transfer-service/Dockerfile
+          push: true
+          load: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/transfer-service:latest
+
+      # ------------------------------------------------------------------------
+      # Step 7: Build & Push Auth Service Image
+      # Image Tag: hari930531/auth-service:latest
+      # Action: docker/build-push-action@v5
+      # ------------------------------------------------------------------------
+      - name: Build and Push auth-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./auth-service
+          file: ./auth-service/Dockerfile
+          push: true
+          load: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/auth-service:latest
+
+      # ------------------------------------------------------------------------
+      # Step 8: Initialize Network & Persistent Volume
+      # ------------------------------------------------------------------------
+      - name: Create Custom Network and Storage Volume
+        run: |
+          echo "Creating custom bridge network: bank-network"
+          docker network create bank-network
+
+          echo "Creating MySQL database volume: mysql_data"
+          docker volume create mysql_data
+
+      # ------------------------------------------------------------------------
+      # Step 9: Launch Containers on Shared Network
+      # ------------------------------------------------------------------------
+      - name: Start All Containers
+        run: |
+          echo "1. Starting MySQL database container..."
+          docker run -d \
+            --name bank-mysql \
+            --network bank-network \
+            -v mysql_data:/var/lib/mysql \
+            -v ${{ github.workspace }}/init.sql:/docker-entrypoint-initdb.d/init.sql \
+            -e MYSQL_ROOT_PASSWORD=Admin@123 \
+            -e MYSQL_DATABASE=bankdb \
+            -p 3306:3306 \
+            mysql:8.0
+
+          echo "Waiting 15 seconds for MySQL initialization..."
+          sleep 15
+
+          echo "2. Starting Account Service container..."
+          docker run -d \
+            --name account-service_container \
+            --network bank-network \
+            -e DB_HOST=bank-mysql \
+            -p 5001:5001 \
+            ${{ vars.DOCKERHUB_USERNAME }}/account-service:latest
+
+          echo "3. Starting Transfer Service container..."
+          docker run -d \
+            --name transfer-service_container \
+            --network bank-network \
+            -p 5002:5002 \
+            ${{ vars.DOCKERHUB_USERNAME }}/transfer-service:latest
+
+          echo "4. Starting Auth Service container..."
+          docker run -d \
+            --name auth-service_container \
+            --network bank-network \
+            -e DB_HOST=bank-mysql \
+            -p 5003:5003 \
+            ${{ vars.DOCKERHUB_USERNAME }}/auth-service:latest
+
+          echo "5. Starting Frontend container..."
+          docker run -d \
+            --name Bank_Frontend_container \
+            --network bank-network \
+            -p 5500:80 \
+            ${{ vars.DOCKERHUB_USERNAME }}/Bank_Frontend:latest
+
+      # ------------------------------------------------------------------------
+      # Step 10: Inspect Running Containers & Network
+      # ------------------------------------------------------------------------
+      - name: Inspect Runtime Status
+        run: |
+          echo "Listing running containers:"
+          docker ps -a
+
+          echo "Listing active networks:"
+          docker network inspect bank-network

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Basic HTML5 Page Setup -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hari's Bank of Tamil Nadu</title>
+
+    <!-- Embedded CSS Styling -->
+    <style>
+        /* Base page styling and background */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f4f6f8; 
+            margin: 0; 
+            padding: 20px; 
+        }
+
+        /* Central card layout container */
+        .container { 
+            max-width: 850px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 25px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+        
+        /* Top ticker displaying live clock and exchange rate */
+        .live-ticker {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2d3748;
+            color: #edf2f7;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        /* Badge for highlighting live forex rate */
+        .currency-badge {
+            background: #38a169;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        /* Bank portal main title header */
+        h1 { 
+            color: #800020; 
+            border-bottom: 2px solid #800020; 
+            padding-bottom: 10px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        /* Section subheadings */
+        h2 { 
+            color: #1a365d; 
+            margin-top: 25px; 
+        }
+
+        /* Active logged-in user badge */
+        .user-badge {
+            font-size: 14px;
+            color: #2b6cb0;
+            background: #ebf8ff;
+            padding: 5px 12px;
+            border-radius: 12px;
+        }
+
+        /* Account ledger table styling */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+        }
+        th, td { 
+            border: 1px solid #e2e8f0; 
+            padding: 12px; 
+            text-align: left; 
+        }
+        th { 
+            background: #edf2f7; 
+        }
+
+        /* Form elements and layout */
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        input, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #cbd5e0; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-family: inherit;
+        }
+
+        /* Action buttons styling */
+        button { 
+            background: #800020; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold; 
+        }
+        button:hover { 
+            background: #5a0016; 
+        }
+
+        /* Logout button styling */
+        .logout-btn {
+            background: #718096;
+            font-size: 13px;
+            padding: 6px 12px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover { 
+            background: #4a5568; 
+        }
+
+        /* Toggle links between Login and Register views */
+        .toggle-link {
+            color: #2b6cb0;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 12px;
+            display: inline-block;
+        }
+
+        /* Notification boxes (Success and Error alerts) */
+        #message, #loginMessage, #regMessage { 
+            margin-top: 15px; 
+            padding: 10px; 
+            border-radius: 4px; 
+            display: none; 
+        }
+        .success { 
+            background: #c6f6d5; 
+            color: #22543d; 
+        }
+        .error { 
+            background: #fed7d7; 
+            color: #742a2a; 
+        }
+
+        /* Utility class to hide elements */
+        .hidden { 
+            display: none !important; 
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Top Status Bar: Displays live date, time, and exchange rates -->
+    <div class="live-ticker">
+        <div id="liveClock">Loading date & time...</div>
+        <div>
+            Live Rate: <span class="currency-badge" id="liveForex">1 USD = ₹ Loading...</span>
+        </div>
+    </div>
+
+    <!-- Application Header -->
+    <h1>
+        Hari's Bank of Tamil Nadu
+        <!-- User session badge displayed after successful login -->
+        <span id="userInfo" class="hidden">
+            <span class="user-badge" id="loggedUserTag"></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </span>
+    </h1>
+
+    <!-- 1. LOGIN SECTION -->
+    <div id="loginSection">
+        <h2>Customer Login</h2>
+        <div class="form-group">
+            <label>Username:</label>
+            <input type="text" id="loginUser" placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="loginPass" placeholder="Enter password">
+        </div>
+        <!-- Trigger user login verification -->
+        <button onclick="handleLogin()">Login</button>
+        <div id="loginMessage"></div>
+        <div>
+            <!-- Switch view to user registration -->
+            <span class="toggle-link" onclick="toggleAuth('register')">New Customer? Create Account here</span>
+        </div>
+    </div>
+
+    <!-- 2. REGISTRATION / NEW ACCOUNT OPENING SECTION -->
+    <div id="registerSection" class="hidden">
+        <h2>Open New Bank Account</h2>
+        <div class="form-group">
+            <label>Full Name (Account Holder):</label>
+            <input type="text" id="regHolderName" placeholder="e.g. Ramesh Kannan">
+        </div>
+        <div class="form-group">
+            <label>Email Address:</label>
+            <input type="email" id="regEmail" placeholder="e.g. ramesh@example.com">
+        </div>
+        <div class="form-group">
+            <label>Contact Number:</label>
+            <input type="tel" id="regPhone" placeholder="e.g. 9876543210">
+        </div>
+        <div class="form-group">
+            <label>Address:</label>
+            <textarea id="regAddress" rows="2" placeholder="Enter full residential address"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Choose Username:</label>
+            <input type="text" id="regUser" placeholder="Choose unique username">
+        </div>
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="regPass" placeholder="Choose password">
+        </div>
+        <div class="form-group">
+            <label>Initial Deposit (₹):</label>
+            <input type="number" id="regBalance" value="1000" placeholder="e.g. 1000">
+        </div>
+        <!-- Trigger customer onboarding request -->
+        <button onclick="handleRegister()">Create Account</button>
+        <div id="regMessage"></div>
+        <div>
+            <!-- Switch back to login view -->
+            <span class="toggle-link" onclick="toggleAuth('login')">Already have an account? Login here</span>
+        </div>
+    </div>
+
+    <!-- 3. DASHBOARD SECTION (Accessible only when logged in) -->
+    <div id="dashboardSection" class="hidden">
+        <h2>Account Ledger</h2>
+        <!-- Manually refresh ledger balances -->
+        <button onclick="loadAccounts()">Refresh Balance</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Account ID</th>
+                    <th>Account Holder</th>
+                    <th>Balance (₹)</th>
+                </tr>
+            </thead>
+            <!-- Dynamic table rows loaded from Account Service -->
+            <tbody id="accountsTable">
+                <tr><td colspan="3">Loading...</td></tr>
+            </tbody>
+        </table>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>Fund Transfer</h2>
+        <div class="form-group">
+            <label>From Account:</label>
+            <!-- Auto-populated with the logged-in customer's Account ID -->
+            <input type="text" id="fromAcc" readonly style="background: #edf2f7;">
+        </div>
+        <div class="form-group">
+            <label>To Account:</label>
+            <input type="text" id="toAcc" placeholder="e.g. ACC102">
+        </div>
+        <div class="form-group">
+            <label>Amount (₹):</label>
+            <input type="number" id="amount" placeholder="e.g. 500">
+        </div>
+        <!-- Trigger balance transfer between accounts -->
+        <button onclick="transfer()">Transfer Funds</button>
+        <div id="message"></div>
+    </div>
+</div>
+
+<!-- Frontend Application Logic -->
+<script>
+    // -------------------------------------------------------------------------
+    // FUNCTION: Toggle between Login and Registration views
+    // -------------------------------------------------------------------------
+    function toggleAuth(view) {
+        if (view === 'register') {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('registerSection').classList.remove('hidden');
+        } else {
+            document.getElementById('registerSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Display live Indian Standard Time and Date
+    // Updates every 1000ms (1 second)
+    // -------------------------------------------------------------------------
+    function updateClock() {
+        const now = new Date();
+        const options = { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit',
+            hour12: true 
+        };
+        const clockEl = document.getElementById('liveClock');
+        if (clockEl) {
+            clockEl.innerText = "🗓️ " + now.toLocaleString('en-IN', options);
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Fetch real-time USD to INR exchange rates
+    // Target: Public Forex API; refreshes every 10 minutes
+    // -------------------------------------------------------------------------
+    async function fetchLiveDollarRate() {
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await res.json();
+            if (data && data.rates && data.rates.INR) {
+                const inrRate = data.rates.INR.toFixed(2);
+                document.getElementById('liveForex').innerText = `1 USD = ₹${inrRate}`;
+            }
+        } catch (err) {
+            console.error("Forex fetch error:", err);
+            document.getElementById('liveForex').innerText = '1 USD = ₹ 83.50 (Approx)';
+        }
+    }
+    fetchLiveDollarRate();
+    setInterval(fetchLiveDollarRate, 600000);
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Register a new bank customer
+    // Target Endpoint: Auth Service running on port 5003 (/api/auth/register)
+    // -------------------------------------------------------------------------
+    async function handleRegister() {
+        const holder_name = document.getElementById('regHolderName').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const phone = document.getElementById('regPhone').value.trim();
+        const address = document.getElementById('regAddress').value.trim();
+        const username = document.getElementById('regUser').value.trim();
+        const password = document.getElementById('regPass').value.trim();
+        const initial_balance = document.getElementById('regBalance').value;
+        const msgDiv = document.getElementById('regMessage');
+
+        // Client-side validation: Check for empty input fields
+        if (!holder_name || !email || !phone || !address || !username || !password) {
+            msgDiv.style.display = 'block';
+            msgDiv.className = 'error';
+            msgDiv.innerText = 'Please fill all required registration fields.';
+            return;
+        }
+
+        try {
+            // Send registration payload via HTTP POST
+            const res = await fetch('http://127.0.0.1:5003/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    holder_name, 
+                    email, 
+                    phone, 
+                    address, 
+                    username, 
+                    password, 
+                    initial_balance 
+                })
+            });
+
+            const data = await res.json();
+            msgDiv.style.display = 'block';
+
+            if (res.ok) {
+                // Show success banner and redirect to login screen after 2 seconds
+                msgDiv.className = 'success';
+                msgDiv.innerText = `${data.message} Redirecting to login...`;
+                setTimeout(() => {
+                    toggleAuth('login');
+                    document.getElementById('loginUser').value = username;
+                    msgDiv.style.display = 'none';
+                }, 2000);
+            } else {
+                msgDiv.className = 'error';
+                msgDiv.innerText = data.error || 'Registration failed.';
+            }
+        } catch (err) {
+            console.error("Registration request error:", err);
+            msgDiv.style.display = 'block';
+            msgDiv.className = 'error';
+            msgDiv.innerText = 'Auth service unreachable. Ensure port 5003 is active.';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Authenticate customer login credentials
+    // Target Endpoint: Auth Service running on port 5003 (/api/auth/login)
+    // -------------------------------------------------------------------------
+    async function handleLogin() {
+        const username = document.getElementById('loginUser').value.trim();
+        const password = document.getElementById('loginPass').value.trim();
+        const msgDiv = document.getElementById('loginMessage');
+
+        try {
+            // Send login payload to backend auth service
+            const res = await fetch('http://127.0.0.1:5003/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+            msgDiv.style.display = 'block';
+
+            if (res.ok) {
+                // Store JWT token and session profile in browser localStorage
+                localStorage.setItem('bank_token', data.token);
+                localStorage.setItem('bank_user', JSON.stringify(data.user));
+                // Transition to dashboard interface
+                showDashboard(data.user);
+            } else {
+                msgDiv.className = 'error';
+                msgDiv.innerText = data.error || 'Invalid credentials.';
+            }
+        } catch (err) {
+            console.error("Login request error:", err);
+            msgDiv.style.display = 'block';
+            msgDiv.className = 'error';
+            msgDiv.innerText = 'Auth service offline. Ensure port 5003 is active.';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Render the dashboard view upon successful authentication
+    // -------------------------------------------------------------------------
+    function showDashboard(user) {
+        // Hide login and registration sections
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('registerSection').classList.add('hidden');
+        
+        // Display dashboard view and user badge
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('userInfo').classList.remove('hidden');
+
+        // Populate logged-in user label and lock the transfer source account ID
+        document.getElementById('loggedUserTag').innerText = `Logged in: ${user.username} (${user.account_id})`;
+        document.getElementById('fromAcc').value = user.account_id;
+
+        // Fetch latest ledger balances
+        loadAccounts();
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Clear customer session and return to login view
+    // -------------------------------------------------------------------------
+    function logout() {
+        localStorage.removeItem('bank_token');
+        localStorage.removeItem('bank_user');
+        location.reload();
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Query Account Service to fetch all ledger entries
+    // Target Endpoint: Account Service running on port 5001 (/api/accounts)
+    // -------------------------------------------------------------------------
+    async function loadAccounts() {
+        const tbody = document.getElementById('accountsTable');
+        try {
+            const res = await fetch('http://127.0.0.1:5001/api/accounts');
+            const data = await res.json();
+            tbody.innerHTML = '';
+            // Insert each customer ledger row into table
+            data.forEach(acc => {
+                tbody.innerHTML += `<tr>
+                    <td><strong>${acc.account_id}</strong></td>
+                    <td>${acc.holder_name}</td>
+                    <td>₹${parseFloat(acc.balance).toFixed(2)}</td>
+                </tr>`;
+            });
+        } catch (err) {
+            console.error("Account service error:", err);
+            tbody.innerHTML = `<tr><td colspan="3" style="color:red;">Failed to load accounts. Ensure Account Service is running on port 5001.</td></tr>`;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCTION: Process fund transfer between two accounts
+    // Target Endpoint: Transfer Service running on port 5002 (/api/transfer)
+    // -------------------------------------------------------------------------
+    async function transfer() {
+        const from_account = document.getElementById('fromAcc').value.trim();
+        const to_account = document.getElementById('toAcc').value.trim();
+        const amount = document.getElementById('amount').value;
+        const msgDiv = document.getElementById('message');
+
+        try {
+            const res = await fetch('http://127.0.0.1:5002/api/transfer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from_account, to_account, amount })
+            });
+
+            const data = await res.json();
+            msgDiv.style.display = 'block';
+
+            if (res.ok) {
+                // Display confirmation message and refresh balances
+                msgDiv.className = 'success';
+                msgDiv.innerText = data.message;
+                loadAccounts();
+            } else {
+                msgDiv.className = 'error';
+                msgDiv.innerText = data.error || 'Transfer failed.';
+            }
+        } catch (err) {
+            console.error("Transfer service error:", err);
+            msgDiv.style.display = 'block';
+            msgDiv.className = 'error';
+            msgDiv.innerText = 'Transfer service error. Ensure port 5002 is active.';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // PAGE INITIALIZATION: Check for existing active session on load
+    // -------------------------------------------------------------------------
+    window.onload = function() {
+        const savedUser = localStorage.getItem('bank_user');
+        if (savedUser) {
+            showDashboard(JSON.parse(savedUser));
+        }
+    };
+</script>
+</body>
+</html>

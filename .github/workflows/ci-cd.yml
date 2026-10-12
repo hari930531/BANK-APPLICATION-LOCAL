@@ -1,0 +1,136 @@
+# ==============================================================================
+# Workflow: Build, Push, and Run Microservices with Network and Volume
+# Description: Creates a custom bridge network and persistent MySQL volume,
+#              builds Docker images for each service using direct CLI commands,
+#              pushes them to Docker Hub, and runs containers on the shared network.
+# ==============================================================================
+
+name: Build and Run with Network and Volume
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  docker-pipeline:
+    name: Run Docker CLI Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------------
+      # STEP 1: Check out source code repository
+      # ------------------------------------------------------------------------
+      - name: Git Checkout Application
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------------
+      # STEP 2: Authenticate with Docker Hub using repository secrets & variables
+      # ------------------------------------------------------------------------
+      - name: Log in to Docker Hub
+        run: |
+          echo "Logging into Docker Hub..."
+          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
+
+      # ------------------------------------------------------------------------
+      # STEP 3: Create dedicated bridge network and persistent database volume
+      # ------------------------------------------------------------------------
+      - name: Create Custom Network and Database Volume
+        run: |
+          echo "Creating isolated bridge network for inter-container communication..."
+          docker network create bank-network
+
+          echo "Creating persistent volume for MySQL database storage..."
+          docker volume create mysql_data
+
+      # ------------------------------------------------------------------------
+      # STEP 4: Build Docker images for each microservice using CLI
+      # ------------------------------------------------------------------------
+      - name: Build Docker Images for Microservices
+        run: |
+          echo "Building Frontend Docker Image..."
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/Bank_Frontend:latest ./frontend
+
+          echo "Building Account Service Docker Image..."
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/account-service:latest ./account-service
+
+          echo "Building Transfer Service Docker Image..."
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/transfer-service:latest ./transfer-service
+
+          echo "Building Auth Service Docker Image..."
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/auth-service:latest ./auth-service
+
+      # ------------------------------------------------------------------------
+      # STEP 5: Push all built images to Docker Hub registry
+      # ------------------------------------------------------------------------
+      - name: Push Docker Images to Docker Hub
+        run: |
+          echo "Pushing built images to Docker Hub registry..."
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/Bank_Frontend:latest
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/account-service:latest
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/transfer-service:latest
+          docker push ${{ vars.DOCKERHUB_USERNAME }}/auth-service:latest
+
+      # ------------------------------------------------------------------------
+      # STEP 6: Run containers on the same Docker network with mounted volumes
+      # ------------------------------------------------------------------------
+      - name: Run Microservice Containers
+        run: |
+          echo "Starting MySQL database container with attached volume and network..."
+          docker run -d \
+            --name bank-mysql \
+            --network bank-network \
+            -v mysql_data:/var/lib/mysql \
+            -v ${{ github.workspace }}/init.sql:/docker-entrypoint-initdb.d/init.sql \
+            -e MYSQL_ROOT_PASSWORD=Admin@123 \
+            -e MYSQL_DATABASE=bankdb \
+            -p 3306:3306 \
+            mysql:8.0
+
+          echo "Waiting 15 seconds for MySQL engine to fully initialize..."
+          sleep 15
+
+          echo "Starting Account Service container..."
+          docker run -d \
+            --name account-service_container \
+            --network bank-network \
+            -e DB_HOST=bank-mysql \
+            -p 5001:5001 \
+            ${{ vars.DOCKERHUB_USERNAME }}/account-service:latest
+
+          echo "Starting Transfer Service container..."
+          docker run -d \
+            --name transfer-service_container \
+            --network bank-network \
+            -p 5002:5002 \
+            ${{ vars.DOCKERHUB_USERNAME }}/transfer-service:latest
+
+          echo "Starting Auth Service container..."
+          docker run -d \
+            --name auth-service_container \
+            --network bank-network \
+            -e DB_HOST=bank-mysql \
+            -p 5003:5003 \
+            ${{ vars.DOCKERHUB_USERNAME }}/auth-service:latest
+
+          echo "Starting Frontend application container..."
+          docker run -d \
+            --name Bank_Frontend_container \
+            --network bank-network \
+            -p 5500:80 \
+            ${{ vars.DOCKERHUB_USERNAME }}/Bank_Frontend:latest
+
+      # ------------------------------------------------------------------------
+      # STEP 7: Verify runtime health, networks, and containers status
+      # ------------------------------------------------------------------------
+      - name: Verify Container Network and Running Instances
+        run: |
+          echo "Inspecting bridge network members..."
+          docker network inspect bank-network
+
+          echo "Listing all Docker volumes..."
+          docker volume ls
+
+          echo "Listing all running container instances..."
+          docker ps -a
